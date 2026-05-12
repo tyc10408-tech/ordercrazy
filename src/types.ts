@@ -1,6 +1,5 @@
 export type ColorId = 'R' | 'G' | 'B' | 'Y' | 'P' | 'C' | 'O';
 
-// ── 元の彩度に戻したカラーパレット ───────────────────────────────
 export const COLORS: Record<ColorId, string> = {
   R: '#FF5252',
   G: '#4CAF50',
@@ -27,7 +26,7 @@ export interface LevelPattern {
 
 export const STAGE_PATTERNS: LevelPattern[][] = [
 
-  // ━━ Stage 1: 3色・空き1・全満タン ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━ Stage 1: 3色・空き1・全満タン・ギミックなし ━━━━━━━━━━━━━━━
   [
     {
       stage: 1, pattern: 1, capacity: 4,
@@ -87,11 +86,10 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
     {
       stage: 2, pattern: 3, capacity: 4,
-      // ※修正: 元データR=5,G=3 → bottle2の隠しセル(pos2)をR→Gに修正
       bottles: [
         { stack: ['R','R','?','B'], actual: ['R','R','Y','B'] },
         { stack: ['?','G','G','Y'], actual: ['R','G','G','Y'] },
-        { stack: ['B','B','?','?'], actual: ['B','B','G','Y'] },
+        { stack: ['B','B','?','?'], actual: ['B','B','R','Y'] },
         { stack: ['Y','?','R','G'], actual: ['Y','B','R','G'] },
         { empty: true },
       ],
@@ -99,7 +97,7 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 3: 5色・？5〜8個・空き0 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━ Stage 3: 5色・？5〜8個・空き0・一部満タンでない ━━━━━━━━━━━
   [
     {
       stage: 3, pattern: 1, capacity: 4,
@@ -139,7 +137,7 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 4: 6色・？10〜15個・空き2・全満タン ━━━━━━━━━━━━━━━━
+  // ━━ Stage 4: 6色・？10〜18個・空き2・全満タン ━━━━━━━━━━━━━━━━
   [
     {
       stage: 4, pattern: 1, capacity: 4,
@@ -157,14 +155,14 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
     {
       stage: 4, pattern: 2, capacity: 4,
-      // ※修正: 元データ色不均等 → 検証済み回転パターンに置き換え(13隠し)
+      // ※修正済み: 各色4個均等（隠し18個）
       bottles: [
-        { stack: ['?','?','B','Y'], actual: ['R','G','B','Y'] },
-        { stack: ['?','?','Y','P'], actual: ['G','B','Y','P'] },
-        { stack: ['?','?','P','C'], actual: ['B','Y','P','C'] },
-        { stack: ['?','?','C','R'], actual: ['Y','P','C','R'] },
-        { stack: ['?','?','R','G'], actual: ['P','C','R','G'] },
-        { stack: ['?','?','?','B'], actual: ['C','R','G','B'] },
+        { stack: ['R','?','?','?'], actual: ['R','G','B','Y'] },
+        { stack: ['P','?','?','?'], actual: ['P','C','R','G'] },
+        { stack: ['B','?','?','?'], actual: ['B','Y','P','C'] },
+        { stack: ['G','?','?','?'], actual: ['G','B','Y','P'] },
+        { stack: ['C','?','?','?'], actual: ['C','R','G','B'] },
+        { stack: ['Y','?','?','?'], actual: ['Y','P','C','R'] },
         { empty: true },
         { empty: true },
       ],
@@ -186,59 +184,69 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 5: 7色・capacity6・空き2・全満タン ━━━━━━━━━━━━━━━━━
+  // ━━ Stage 5: 6色・各色8個・空き1+最大3追加・特別ギミック ━━━━━━
   [
     {
-      stage: 5, pattern: 1, capacity: 6,
-      // ※修正: 元データR=7,B=5 → bottle6の隠しpos4をR→Bに修正
+      stage: 5, pattern: 1, capacity: 4,
       bottles: [
-        { stack: ['?','?','?','?','?','R'], actual: ['O','C','P','Y','G','R'] },
-        { stack: ['?','?','?','?','?','G'], actual: ['R','B','C','O','Y','G'] },
-        { stack: ['?','?','?','?','?','B'], actual: ['Y','P','O','C','R','B'] },
-        { stack: ['?','?','?','?','?','Y'], actual: ['P','G','R','O','C','Y'] },
-        { stack: ['?','?','?','?','?','P'], actual: ['C','R','G','B','O','P'] },
-        { stack: ['?','?','?','?','?','C'], actual: ['G','Y','B','R','P','C'] },
-        { stack: ['?','?','?','?','?','O'], actual: ['B','P','Y','G','B','O'] },
-        { empty: true },
+        { stack: ['R','?','?','?'], actual: ['R','G','B','Y'] },
+        { stack: ['P','?','?','?'], actual: ['P','C','R','G'] },
+        { stack: ['B','?','?','?'], actual: ['B','Y','P','C'] },
+        { stack: ['G','?','?','?'], actual: ['G','B','Y','P'] },
+        { stack: ['C','?','?','?'], actual: ['C','R','G','B'] },
+        { stack: ['Y','?','?','?'], actual: ['Y','P','C','R'] },
+        { stack: ['R','?','?','?'], actual: ['R','G','B','Y'] },
+        { stack: ['P','?','?','?'], actual: ['P','C','R','G'] },
+        { stack: ['B','?','?','?'], actual: ['B','Y','P','C'] },
+        { stack: ['G','B','?','?'], actual: ['G','B','Y','P'] },
+        { stack: ['C','R','?','?'], actual: ['C','R','G','B'] },
+        { stack: ['Y','?','?','?'], actual: ['Y','P','C','R'] },
         { empty: true },
       ],
-      colors: ['R','G','B','Y','P','C','O'],
+      colors: ['R','G','B','Y','P','C'],
     },
     {
-      stage: 5, pattern: 2, capacity: 6,
+      stage: 5, pattern: 2, capacity: 4,
       bottles: [
-        { stack: ['?','?','?','?','?','?'], actual: ['R','G','B','Y','P','C'] },
-        { stack: ['?','?','?','?','?','?'], actual: ['O','R','G','B','Y','P'] },
-        { stack: ['?','?','?','?','?','?'], actual: ['C','O','R','G','B','Y'] },
-        { stack: ['?','?','?','?','?','R'], actual: ['P','C','O','R','G','B'] },
-        { stack: ['?','?','?','?','?','G'], actual: ['Y','P','C','O','R','G'] },
-        { stack: ['?','?','?','?','?','B'], actual: ['B','Y','P','C','O','R'] },
-        { stack: ['?','?','?','?','?','Y'], actual: ['G','B','Y','P','C','O'] },
-        { empty: true },
+        { stack: ['R','?','?','?'], actual: ['R','G','B','Y'] },
+        { stack: ['P','?','?','?'], actual: ['P','C','R','G'] },
+        { stack: ['B','?','?','?'], actual: ['B','Y','P','C'] },
+        { stack: ['G','?','?','?'], actual: ['G','B','Y','P'] },
+        { stack: ['C','?','?','?'], actual: ['C','R','G','B'] },
+        { stack: ['Y','?','?','?'], actual: ['Y','P','C','R'] },
+        { stack: ['R','?','?','?'], actual: ['R','G','B','Y'] },
+        { stack: ['P','?','?','?'], actual: ['P','C','R','G'] },
+        { stack: ['B','Y','?','?'], actual: ['B','Y','P','C'] },
+        { stack: ['G','B','?','?'], actual: ['G','B','Y','P'] },
+        { stack: ['C','R','?','?'], actual: ['C','R','G','B'] },
+        { stack: ['Y','?','?','?'], actual: ['Y','P','C','R'] },
         { empty: true },
       ],
-      colors: ['R','G','B','Y','P','C','O'],
+      colors: ['R','G','B','Y','P','C'],
     },
     {
-      stage: 5, pattern: 3, capacity: 6,
-      // P2と同じactual、hiddenパターンのみ変更（上位5セル表示・下1隠し、最終ボトルのみ4隠し）
+      stage: 5, pattern: 3, capacity: 4,
       bottles: [
-        { stack: ['?','G','B','Y','P','C'], actual: ['R','G','B','Y','P','C'] },
-        { stack: ['?','R','G','B','Y','P'], actual: ['O','R','G','B','Y','P'] },
-        { stack: ['?','O','R','G','B','Y'], actual: ['C','O','R','G','B','Y'] },
-        { stack: ['?','C','O','R','G','B'], actual: ['P','C','O','R','G','B'] },
-        { stack: ['?','P','C','O','R','G'], actual: ['Y','P','C','O','R','G'] },
-        { stack: ['?','Y','P','C','O','R'], actual: ['B','Y','P','C','O','R'] },
-        { stack: ['?','?','?','?','C','O'], actual: ['G','B','Y','P','C','O'] },
-        { empty: true },
+        { stack: ['R','?','?','?'], actual: ['R','G','B','Y'] },
+        { stack: ['P','?','?','?'], actual: ['P','C','R','G'] },
+        { stack: ['B','?','?','?'], actual: ['B','Y','P','C'] },
+        { stack: ['G','?','?','?'], actual: ['G','B','Y','P'] },
+        { stack: ['C','?','?','?'], actual: ['C','R','G','B'] },
+        { stack: ['Y','?','?','?'], actual: ['Y','P','C','R'] },
+        { stack: ['R','?','?','?'], actual: ['R','G','B','Y'] },
+        { stack: ['P','?','?','?'], actual: ['P','C','R','G'] },
+        { stack: ['B','?','?','?'], actual: ['B','Y','P','C'] },
+        { stack: ['G','B','Y','?'], actual: ['G','B','Y','P'] },
+        { stack: ['C','R','G','?'], actual: ['C','R','G','B'] },
+        { stack: ['Y','?','?','?'], actual: ['Y','P','C','R'] },
         { empty: true },
       ],
-      colors: ['R','G','B','Y','P','C','O'],
+      colors: ['R','G','B','Y','P','C'],
     },
   ],
 ];
 
-// ── パターンをゲーム状態に変換 ────────────────────────────────────
+// ── パターン → ゲーム状態変換 ────────────────────────────────────
 export function parsePattern(pattern: LevelPattern): {
   bottles: ColorId[][];
   revealedMask: boolean[][];
@@ -264,5 +272,8 @@ export function parsePattern(pattern: LevelPattern): {
   }
   return { bottles, revealedMask, capacity };
 }
+
+// Stage5 オーダー順序
+export const STAGE5_ORDER: ColorId[] = ['R', 'G', 'B', 'Y', 'P', 'C'];
 
 export const LEVELS_CONFIG = STAGE_PATTERNS.map((_, i) => ({ stageNumber: i + 1 }));

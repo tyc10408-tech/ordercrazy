@@ -15,14 +15,8 @@ interface BottleProps {
 }
 
 const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
-  colors,
-  isSelected,
-  tilt,
-  width = 64,
-  height = 240,
-  capacity = 4,
-  revealedMask,
-  onClick,
+  colors, isSelected, tilt, width = 64, height = 240,
+  capacity = 4, revealedMask, onClick,
 }, ref) => {
   const innerRef = useRef<HTMLDivElement>(null);
 
@@ -45,14 +39,13 @@ const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
       style={{
         width: `${width}px`,
         height: `${height}px`,
-        // ── 影を濃くして背景から浮き立たせる ──
         filter: 'drop-shadow(0 6px 16px rgba(0,0,0,0.55))',
       }}
       onClick={onClick}
     >
       <div ref={innerRef} className="w-full h-full relative">
 
-        {/* ガラス本体 - 枠線と背景を強調 */}
+        {/* ガラス本体 */}
         <div
           className="absolute inset-x-0 bottom-0 top-0 rounded-b-full rounded-t-lg overflow-hidden z-20 pointer-events-none"
           style={{
@@ -62,13 +55,15 @@ const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
             boxShadow: 'inset 0 0 0 1.5px rgba(0,0,0,0.18), inset 2px 0 6px rgba(255,255,255,0.25)',
           }}
         >
-          {/* 反射ハイライト */}
           <div className="absolute left-2 top-4 bottom-4 w-1 bg-white/30 rounded-full z-30" />
 
           {/* 液体スタック */}
           <div className="absolute inset-x-0 bottom-0 top-4 flex flex-col-reverse z-10">
             {colors.map((colorId, index) => {
-              const isHidden = !(revealedMask?.[index] ?? true);
+              const isTop = index === colors.length - 1;
+              // ── 新ルール: トップセルは常に実際の色を表示、それ以外はマスクで判定 ──
+              const isHidden = !isTop && !(revealedMask?.[index] ?? true);
+
               return (
                 <div
                   key={`${index}-${colorId}`}
@@ -78,7 +73,6 @@ const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
                     backgroundColor: isHidden ? '#5a5a6a' : COLORS[colorId],
                     borderTop: '1px solid rgba(255,255,255,0.25)',
                     borderRadius: index === 0 ? `0 0 ${width}px ${width}px` : '0',
-                    // ── 液体に少し影を付けてセル境界を強調 ──
                     boxShadow: isHidden ? 'none' : 'inset 0 2px 4px rgba(255,255,255,0.25)',
                   }}
                 >
@@ -90,7 +84,7 @@ const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
                       ?
                     </span>
                   )}
-                  {index === colors.length - 1 && (
+                  {isTop && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-white/35" />
                   )}
                 </div>
@@ -99,7 +93,7 @@ const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
           </div>
         </div>
 
-        {/* 瓶の口 - 枠線を濃くする */}
+        {/* 瓶の口 */}
         <div
           className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full z-30 pointer-events-none"
           style={{

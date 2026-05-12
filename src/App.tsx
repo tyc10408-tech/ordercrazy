@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { gsap } from 'gsap';
 import { cn } from './lib/utils';
 import Bottle from './components/Bottle';
-import { STAGE_PATTERNS, ColorId, parsePattern } from './types';
-import { RefreshCcw, Undo2, ChevronRight, Trophy } from 'lucide-react';
+import { STAGE_PATTERNS, STAGE5_ORDER, ColorId, parsePattern, COLORS } from './types';
+import { RefreshCcw, Undo2, ChevronRight, Trophy, PackageCheck } from 'lucide-react';
+
+const IS_STAGE5 = (idx: number) => idx === 4;
 
 export default function App() {
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
@@ -18,7 +20,25 @@ export default function App() {
   const [revealedMask, setRevealedMask] = useState<boolean[][]>([]);
   const [capacity, setCapacity] = useState(4);
 
-  // ── レベル初期化（3パターンからランダム選択） ─────────────────
+  // ── Stage5 専用ステート ────────────────────────────────────────
+  const [currentOrderIndex, setCurrentOrderIndex] = useState(0);
+  const [extraEmpty, setExtraEmpty] = useState(0);
+  const [showOrderComplete, setShowOrderComplete] = useState(false);
+  const [orderCompleteColor, setOrderCompleteColor] = useState<ColorId | null>(null);
+  const [showStage5Warning, setShowStage5Warning] = useState(false);
+
+  // stale closure 対策 refs
+  const currentOrderIndexRef = useRef(0);
+  const extraEmptyRef = useRef(0);
+  const capacityRef = useRef(4);
+  const currentLevelIndexRef = useRef(0);
+
+  useEffect(() => { currentOrderIndexRef.current = currentOrderIndex; }, [currentOrderIndex]);
+  useEffect(() => { extraEmptyRef.current = extraEmpty; }, [extraEmpty]);
+  useEffect(() => { capacityRef.current = capacity; }, [capacity]);
+  useEffect(() => { currentLevelIndexRef.current = currentLevelIndex; }, [currentLevelIndex]);
+
+  // ── レベル初期化 ───────────────────────────────────────────────
   const initLevel = useCallback((index: number) => {
     const patterns = STAGE_PATTERNS[index];
     if (!patterns) return;
@@ -34,6 +54,19 @@ export default function App() {
     setUndoStack([]);
     setIsWon(false);
     setIsAnimating(false);
+    setShowOrderComplete(false);
+    setOrderCompleteColor(null);
+
+    if (IS_STAGE5(index)) {
+      setCurrentOrderIndex(0);
+      setExtraEmpty(0);
+      currentOrderIndexRef.current = 0;
+      extraEmptyRef.current = 0;
+      setShowStage5Warning(true);
+    } else {
+      setCurrentOrderIndex(0);
+      setExtraEmpty(0);
+    }
 
     if (index === 0) setShowTutorial(true);
     setShowStageSelect(false);
@@ -43,51 +76,28 @@ export default function App() {
     initLevel(currentLevelIndex);
   }, [currentLevelIndex, initLevel]);
 
-  // ── 勝利判定 ───────────────────────────────────────────────────
-  // 「各色の全ユニットが1本のボトルに集約され、
-  //   各ボトルが単色（またはEmpty）」の状態でクリア
+  // ── 勝利判定: 全非空ボトルが満タン+単色 ──────────────────────
   useEffect(() => {
     if (bottles.length === 0 || isAnimating) return;
-
     const nonEmpty = bottles.filter(b => b.length > 0);
     if (nonEmpty.length === 0) return;
-
-    // 各ボトルが単色か
-    const allSorted = nonEmpty.every(b => b.every(c => c === b[0]));
-    if (!allSorted) return;
-
-    // 同じ色のボトルが2本以上ないか
-    const colorSet = new Set(nonEmpty.map(b => b[0]));
-    if (colorSet.size === nonEmpty.length) {
-      setIsWon(true);
-    }
+    const cap = capacityRef.current;
+    const allDone = nonEmpty.every(b => b.length === cap && b.every(c => c === b[0]));
+    if (allDone) setIsWon(true);
   }, [bottles, isAnimating]);
 
   // ── ボトルクリック ────────────────────────────────────────────
+  // ※新ルール: タップでは色を開示しない
   const handleBottleClick = async (idx: number) => {
-    if (isWon || isAnimating || showTutorial || showStageSelect) return;
-
-    // タップ開示: トップセルが隠れていたら表示
-    if (bottles[idx].length > 0) {
-      const topIdx = bottles[idx].length - 1;
-      setRevealedMask(prev => {
-        if (prev[idx]?.[topIdx]) return prev;
-        const next = prev.map(m => [...m]);
-        next[idx][topIdx] = true;
-        return next;
-      });
-    }
+    if (isWon || isAnimating || showTutorial || showStageSelect || showStage5Warning) return;
 
     if (selectedIdx === null) {
-      if (bottles[idx].length > 0) {
-        setSelectedIdx(idx);
-      }
+      if (bottles[idx].length > 0) setSelectedIdx(idx);
     } else if (selectedIdx === idx) {
       setSelectedIdx(null);
     } else {
       const source = bottles[selectedIdx];
       const target = bottles[idx];
-
       if (source.length === 0) { setSelectedIdx(null); return; }
 
       const sourceColor = source[source.length - 1];
@@ -106,6 +116,7 @@ export default function App() {
 
   const bottleRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // ── 注ぐアニメーション ────────────────────────────────────────
   const executePour = async (fromIdx: number, toIdx: number) => {
     if (isAnimating) return;
     setIsAnimating(true);
@@ -114,6 +125,7 @@ export default function App() {
     const targetRef = bottleRefs.current[toIdx];
     if (!sourceRef || !targetRef) { setIsAnimating(false); return; }
 
+    const cap = capacityRef.current;
     const sourceColor = bottles[fromIdx][bottles[fromIdx].length - 1];
     let unitsToMove = 0;
     const snapshot = bottles.map(b => [...b]);
@@ -121,7 +133,7 @@ export default function App() {
     while (
       snapshot[fromIdx].length > 0 &&
       snapshot[fromIdx][snapshot[fromIdx].length - 1] === sourceColor &&
-      snapshot[toIdx].length + unitsToMove < capacity
+      snapshot[toIdx].length + unitsToMove < cap
     ) {
       unitsToMove++;
       snapshot[fromIdx].pop();
@@ -131,6 +143,7 @@ export default function App() {
     const oldToLength = bottles[toIdx].length;
     const newFromLength = oldFromLength - unitsToMove;
     const newToLength = oldToLength + unitsToMove;
+    const bottlesAtPourStart = bottles.map(b => [...b]);
 
     const sRect = sourceRef.getBoundingClientRect();
     const tRect = targetRef.getBoundingClientRect();
@@ -140,23 +153,75 @@ export default function App() {
 
     const timeline = gsap.timeline({
       onComplete: () => {
-        setUndoStack([bottles.map(b => [...b])]);
-
-        const finalBottles = bottles.map(b => [...b]);
+        // ── 最終ボトル状態を計算 ──
+        let finalBottles = bottlesAtPourStart.map(b => [...b]);
         for (let i = 0; i < unitsToMove; i++) {
           const color = finalBottles[fromIdx].pop();
           if (color) finalBottles[toIdx].push(color);
         }
+
+        // ── Stage5: オーダー達成チェック ──
+        let addEmpty = false;
+        let completedColor: ColorId | null = null;
+        const lvl = currentLevelIndexRef.current;
+
+        if (IS_STAGE5(lvl)) {
+          const oIdx = currentOrderIndexRef.current;
+          const eEmpty = extraEmptyRef.current;
+
+          if (oIdx < STAGE5_ORDER.length && eEmpty < 3) {
+            const target = STAGE5_ORDER[oIdx];
+
+            // 「今回のPourで初めて完成したボトル」があるか
+            const justCompleted = finalBottles.some((b, bi) => {
+              const wasComplete =
+                bottlesAtPourStart[bi].length === cap &&
+                bottlesAtPourStart[bi].every(c => c === bottlesAtPourStart[bi][0]) &&
+                bottlesAtPourStart[bi][0] === target;
+              const isNowComplete =
+                b.length === cap &&
+                b.every(c => c === b[0]) &&
+                b[0] === target;
+              return !wasComplete && isNowComplete;
+            });
+
+            if (justCompleted) {
+              addEmpty = true;
+              completedColor = target;
+              const nextOIdx = oIdx + 1;
+              const nextEEmpty = eEmpty + 1;
+              setCurrentOrderIndex(nextOIdx);
+              setExtraEmpty(nextEEmpty);
+              currentOrderIndexRef.current = nextOIdx;
+              extraEmptyRef.current = nextEEmpty;
+              setOrderCompleteColor(target);
+              setShowOrderComplete(true);
+              setTimeout(() => setShowOrderComplete(false), 2500);
+            }
+          }
+        }
+
+        if (addEmpty) finalBottles = [...finalBottles, []];
+
+        // ── Undo は Stage5 以外のみ ──
+        if (!IS_STAGE5(lvl)) {
+          setUndoStack([bottlesAtPourStart]);
+        }
+
         setBottles(finalBottles);
 
+        // ── revealedMask 更新 ──
         setRevealedMask(prev => {
           const next = prev.map(m => [...m]);
+          // fromIdx: 注いでいる途中で一瞬トップになったセルを開示
           for (let j = Math.max(0, newFromLength - 1); j <= oldFromLength - 2; j++) {
-            next[fromIdx][j] = true;
+            if (next[fromIdx]) next[fromIdx][j] = true;
           }
-          for (let j = oldToLength; j < newToLength && j < capacity; j++) {
-            next[toIdx][j] = true;
+          // toIdx: 新たに積まれたセルを開示
+          for (let j = oldToLength; j < newToLength && j < cap; j++) {
+            if (next[toIdx]) next[toIdx][j] = true;
           }
+          if (addEmpty) next.push(Array(cap).fill(false));
           return next;
         });
 
@@ -187,8 +252,9 @@ export default function App() {
     timeline.to(sourceRef, { x: 0, y: 0, duration: 0.15, ease: 'power2.inOut' }, '-=0.03');
   };
 
+  // ── 1手戻る（Stage5では無効） ─────────────────────────────────
   const undo = () => {
-    if (undoStack.length === 0 || isAnimating) return;
+    if (undoStack.length === 0 || isAnimating || IS_STAGE5(currentLevelIndex)) return;
     setBottles(undoStack[0]);
     setUndoStack([]);
     setSelectedIdx(null);
@@ -202,45 +268,78 @@ export default function App() {
     }
   };
 
+  // ── ウィンドウサイズ ───────────────────────────────────────────
   const [windowDim, setWindowDim] = useState({
     w: typeof window !== 'undefined' ? window.innerWidth : 1200,
     h: typeof window !== 'undefined' ? window.innerHeight : 800,
   });
   useEffect(() => {
-    const handleResize = () => setWindowDim({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const h = () => setWindowDim({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
   }, []);
 
-  const bWidth = Math.min(60, Math.max(30, (windowDim.w - 100) / (bottles.length || 9)));
-  const bHeight = Math.min(windowDim.h * 0.52, bWidth * capacity * 0.95);
+  const bWidth = Math.min(56, Math.max(26, (windowDim.w - 80) / Math.max(bottles.length, 8)));
+  const bHeight = Math.min(windowDim.h * 0.5, bWidth * capacity * 0.95);
+
+  // Stage5: 現在のオーダー色
+  const currentOrderColor = IS_STAGE5(currentLevelIndex) && currentOrderIndex < STAGE5_ORDER.length
+    ? STAGE5_ORDER[currentOrderIndex]
+    : null;
 
   return (
     <div
       className="relative min-h-screen w-full flex flex-col items-center justify-start overflow-hidden font-sans select-none"
       style={{
         backgroundImage: "url('https://lh3.googleusercontent.com/d/1Y_hvRo2iMfxBg3dhmogwNeP19zlpmFkM')",
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
       }}
     >
-      <header className="relative pt-12 pb-4 w-full flex flex-col items-center gap-4 z-30">
-        <h1 className="text-4xl md:text-5xl font-black text-emerald-900 tracking-tight drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]">
+      {/* ── ヘッダー ── */}
+      <header className="relative pt-10 pb-2 w-full flex flex-col items-center gap-3 z-30">
+        <h1 className="text-3xl md:text-5xl font-black text-emerald-900 tracking-tight drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]">
           Order Crazy's copy
         </h1>
         <button
           onClick={() => setShowStageSelect(true)}
           className="bg-white/95 backdrop-blur-sm px-10 py-2 rounded-full border-2 border-emerald-300 shadow-lg hover:scale-105 transition-transform active:scale-95"
         >
-          <span className="text-xl font-bold text-emerald-700 uppercase tracking-widest">
+          <span className="text-lg font-bold text-emerald-700 uppercase tracking-widest">
             ステージ {currentLevelIndex + 1} ▼
           </span>
         </button>
+
+        {/* ── Stage5: オーダーパネル ── */}
+        {IS_STAGE5(currentLevelIndex) && (
+          <div className="flex items-center gap-4 bg-white/90 backdrop-blur-sm rounded-full px-6 py-2 shadow-lg border-2 border-emerald-200">
+            {currentOrderColor ? (
+              <>
+                <PackageCheck className="w-5 h-5 text-emerald-600" />
+                <span className="font-bold text-gray-700 text-sm">Next Order:</span>
+                <div
+                  className="w-7 h-7 rounded-full border-2 border-white shadow-md"
+                  style={{ backgroundColor: COLORS[currentOrderColor] }}
+                />
+                <span className="font-bold text-gray-500 text-sm">
+                  {STAGE5_ORDER.slice(0, currentOrderIndex).map((c, i) => (
+                    <span key={i} className="inline-block w-4 h-4 rounded-full mx-0.5 opacity-40 border border-gray-300"
+                      style={{ backgroundColor: COLORS[c] }} />
+                  ))}
+                </span>
+                <span className="font-bold text-emerald-600 text-sm ml-1">
+                  空き +{extraEmpty}/3
+                </span>
+              </>
+            ) : (
+              <span className="font-black text-emerald-600 text-sm">🎉 All Orders Cleared!</span>
+            )}
+          </div>
+        )}
       </header>
 
-      <main className="flex-grow w-full max-w-7xl px-4 md:px-8 pb-[120px] pt-[80px] flex items-center justify-center overflow-visible">
-        <div className="flex flex-row flex-nowrap justify-center items-end gap-1 md:gap-6 w-full overflow-visible">
+      {/* ── ゲームボード ── */}
+      <main className="flex-grow w-full pb-[120px] pt-6 flex items-center justify-center overflow-x-auto">
+        <div className="flex flex-row flex-nowrap justify-center items-end gap-1 md:gap-4 px-4 min-w-max mx-auto">
           {bottles.map((bottleColors, i) => (
             <Bottle
               key={`${currentLevelIndex}-${i}`}
@@ -258,43 +357,120 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="fixed bottom-12 w-full flex justify-center gap-8 z-40">
+      {/* ── フッター（コントロール） ── */}
+      <footer className="fixed bottom-10 w-full flex justify-center gap-6 z-40">
         <button
           onClick={() => initLevel(currentLevelIndex)}
           disabled={isAnimating}
-          className="group flex items-center gap-3 bg-white/95 hover:bg-white px-10 py-5 rounded-full shadow-xl border-2 border-orange-300 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+          className="group flex items-center gap-2 bg-white/95 hover:bg-white px-8 py-4 rounded-full shadow-xl border-2 border-orange-300 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
         >
-          <RefreshCcw className="w-6 h-6 text-orange-500 group-hover:rotate-180 transition-transform duration-500" />
-          <span className="font-black text-gray-800 text-lg">リセット</span>
+          <RefreshCcw className="w-5 h-5 text-orange-500 group-hover:rotate-180 transition-transform duration-500" />
+          <span className="font-black text-gray-800">リセット</span>
         </button>
-        <button
-          onClick={undo}
-          disabled={undoStack.length === 0 || isAnimating}
-          className="group flex items-center gap-3 bg-white/95 hover:bg-white px-10 py-5 rounded-full shadow-xl border-2 border-blue-300 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none grayscale-[0.5]"
-        >
-          <Undo2 className="w-6 h-6 text-blue-500 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-black text-gray-800 text-lg">1手戻る</span>
-        </button>
+
+        {/* Stage5 では Undo を非表示 */}
+        {!IS_STAGE5(currentLevelIndex) && (
+          <button
+            onClick={undo}
+            disabled={undoStack.length === 0 || isAnimating}
+            className="group flex items-center gap-2 bg-white/95 hover:bg-white px-8 py-4 rounded-full shadow-xl border-2 border-blue-300 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none grayscale-[0.5]"
+          >
+            <Undo2 className="w-5 h-5 text-blue-500 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-black text-gray-800">1手戻る</span>
+          </button>
+        )}
       </footer>
 
+      {/* ── Stage5: オーダー達成ポップアップ ── */}
+      <AnimatePresence>
+        {showOrderComplete && orderCompleteColor && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -40, scale: 0.9 }}
+            className="fixed top-36 left-1/2 -translate-x-1/2 z-[300] bg-white rounded-2xl px-8 py-4 shadow-2xl border-2 border-emerald-300 flex items-center gap-4"
+          >
+            <div
+              className="w-9 h-9 rounded-full border-3 border-white shadow-lg"
+              style={{ backgroundColor: COLORS[orderCompleteColor] }}
+            />
+            <div>
+              <p className="font-black text-gray-800">Order Complete!</p>
+              <p className="font-bold text-emerald-600 text-sm">+1 Empty Bottle Added 🎉</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Stage5: スタート警告モーダル ── */}
+      <AnimatePresence>
+        {showStage5Warning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 backdrop-blur-sm p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.85, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-[3rem] p-10 max-w-sm w-full flex flex-col items-center gap-6 shadow-2xl border-4 border-red-200"
+            >
+              <div className="text-5xl">⚠️</div>
+              <h3 className="text-2xl font-black text-gray-800 text-center">
+                ステージ5 特別ルール
+              </h3>
+              <ul className="text-gray-700 font-bold leading-relaxed space-y-3 w-full">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 text-lg">×</span>
+                  <span>このステージでは手順を戻せません！</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-500 text-lg">✓</span>
+                  <span>指定の色のボトルを完成させると空きボトルが1本追加されます（最大+3本）</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 text-lg">●</span>
+                  <span>オーダーを無視してもクリアは可能です</span>
+                </li>
+              </ul>
+              <button
+                onClick={() => setShowStage5Warning(false)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-12 py-4 rounded-full font-black text-xl shadow-lg transition-all active:translate-y-1 w-full"
+              >
+                了解！開始する
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ステージ選択モーダル ── */}
       <AnimatePresence>
         {showStageSelect && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-[3rem] p-10 max-w-md w-full flex flex-col items-center gap-8 shadow-2xl border-4 border-emerald-300">
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-[3rem] p-10 max-w-md w-full flex flex-col items-center gap-8 shadow-2xl border-4 border-emerald-300"
+            >
               <h3 className="text-3xl font-black text-emerald-900">ステージ選択</h3>
               <div className="grid grid-cols-3 gap-4 w-full">
                 {STAGE_PATTERNS.map((_, idx) => (
-                  <button key={idx}
+                  <button
+                    key={idx}
                     onClick={() => { setCurrentLevelIndex(idx); setShowStageSelect(false); }}
                     className={cn(
-                      'aspect-square rounded-2xl flex items-center justify-center text-2xl font-black shadow-md transition-all active:scale-90',
+                      'aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 text-xl font-black shadow-md transition-all active:scale-90',
                       currentLevelIndex === idx
-                        ? 'bg-emerald-500 text-white shadow-emerald-200'
+                        ? 'bg-emerald-500 text-white'
                         : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                    )}>
-                    {idx + 1}
+                    )}
+                  >
+                    <span>{idx + 1}</span>
+                    {idx === 4 && <span className="text-xs font-bold opacity-70">SPECIAL</span>}
                   </button>
                 ))}
               </div>
@@ -306,22 +482,29 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* ── チュートリアル ── */}
       <AnimatePresence>
         {showTutorial && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-[3rem] p-10 max-w-sm w-full flex flex-col items-center gap-8 shadow-2xl border-4 border-emerald-200">
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-[3rem] p-10 max-w-sm w-full flex flex-col items-center gap-8 shadow-2xl border-4 border-emerald-200"
+            >
               <div className="text-center">
                 <h3 className="text-2xl font-black text-emerald-900 mb-4">遊び方</h3>
                 <p className="text-gray-700 font-bold leading-relaxed">
                   同じ色の液体を重ねて、<br />
-                  瓶を1色だけにしよう！<br />
-                  <span className="text-gray-500 text-sm mt-2 block">「？」はタップすると色が分かるよ</span>
+                  瓶を1色で満タンにしよう！<br />
+                  <span className="text-gray-500 text-sm mt-2 block">「？」は上の液体が移動すると色が分かるよ</span>
                 </p>
               </div>
-              <button onClick={() => setShowTutorial(false)}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-12 py-4 rounded-full font-black text-xl shadow-lg transition-all active:translate-y-1">
+              <button
+                onClick={() => setShowTutorial(false)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-12 py-4 rounded-full font-black text-xl shadow-lg transition-all active:translate-y-1"
+              >
                 了解！
               </button>
             </motion.div>
@@ -329,28 +512,41 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* ── クリアモーダル ── */}
       <AnimatePresence>
         {isWon && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
-            <motion.div initial={{ scale: 0.8, y: 50 }} animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-[4rem] p-16 flex flex-col items-center gap-10 shadow-2xl border-x-[12px] border-emerald-100">
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: 50 }} animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-[4rem] p-14 flex flex-col items-center gap-8 shadow-2xl border-x-[12px] border-emerald-100"
+            >
               <motion.div
                 animate={{ rotate: [0, -15, 15, -15, 15, 0], scale: [1, 1.1, 1, 1.1, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="w-32 h-32 bg-yellow-100 rounded-full flex items-center justify-center shadow-inner">
-                <Trophy className="w-16 h-16 text-yellow-500" />
+                className="w-28 h-28 bg-yellow-100 rounded-full flex items-center justify-center shadow-inner"
+              >
+                <Trophy className="w-14 h-14 text-yellow-500" />
               </motion.div>
               <div className="text-center">
                 <h2 className="text-5xl font-black text-gray-800 tracking-tighter">クリア！</h2>
-                <p className="text-emerald-600 font-bold text-xl mt-4">
+                <p className="text-emerald-600 font-bold text-xl mt-3">
                   ステージ {currentLevelIndex + 1} をクリアしました。
                 </p>
+                {IS_STAGE5(currentLevelIndex) && (
+                  <p className="text-gray-500 font-bold text-sm mt-2">
+                    オーダー達成: {Math.min(currentOrderIndex, 3)}/3
+                  </p>
+                )}
               </div>
-              <button onClick={nextStage}
-                className="flex items-center gap-4 bg-emerald-500 hover:bg-emerald-600 text-white px-16 py-6 rounded-full font-black text-3xl shadow-[0_10px_0_rgb(5,150,105)] active:shadow-none active:translate-y-2 transition-all group">
+              <button
+                onClick={nextStage}
+                className="flex items-center gap-4 bg-emerald-500 hover:bg-emerald-600 text-white px-14 py-5 rounded-full font-black text-2xl shadow-[0_10px_0_rgb(5,150,105)] active:shadow-none active:translate-y-2 transition-all group"
+              >
                 {currentLevelIndex < STAGE_PATTERNS.length - 1 ? '次のステージ' : 'もう一度遊ぶ'}
-                <ChevronRight className="w-10 h-10 group-hover:translate-x-2 transition-transform" />
+                <ChevronRight className="w-8 h-8 group-hover:translate-x-2 transition-transform" />
               </button>
             </motion.div>
           </motion.div>
