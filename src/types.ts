@@ -26,7 +26,7 @@ export interface LevelPattern {
 
 export const STAGE_PATTERNS: LevelPattern[][] = [
 
-  // ━━ Stage 1: 3色・空き1・全満タン ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━ Stage 1: 3色・空き1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   [
     {
       stage: 1, pattern: 1, capacity: 4,
@@ -60,7 +60,7 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 2: 4色・？あり・空き2（6本） ━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━ Stage 2: 4色・？あり・空き2（6本） ━━━━━━━━━━━━━━━━━━━━━━━━
   [
     {
       stage: 2, pattern: 1, capacity: 4,
@@ -140,7 +140,7 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 4: 6色・？10〜18個・空き2・全満タン ━━━━━━━━━━━━━━━━
+  // ━━ Stage 4: 6色・？10〜18個・空き2 ━━━━━━━━━━━━━━━━━━━━━━━━━━
   [
     {
       stage: 4, pattern: 1, capacity: 4,
@@ -267,6 +267,13 @@ export function parsePattern(pattern: LevelPattern): {
       bottles.push([...actual]);
       for (let j = 0; j < stack.length; j++) {
         maskRow[j] = stack[j] !== '?';
+      }
+      // ── トップセルは「常に実際の色を表示」するため必ずtrue ──────────
+      // stack定義で '?' がトップにある場合（Stage4/5等）でも、
+      // render ruleと一致させてマスクをtrueに固定する。
+      // これにより isAnimating=true 中もトップが ? にならない。
+      if (actual.length > 0) {
+        maskRow[actual.length - 1] = true;
       }
     }
     revealedMask.push(maskRow);

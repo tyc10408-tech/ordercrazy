@@ -126,7 +126,7 @@ export default function App() {
     const snapshot = bottles.map(b => [...b]);
     const mask = revealedMaskRef.current;
 
-    // 隠しセルで中断
+    // 隠しセルで中断（同じ色でも?は分けて注ぐ）
     while (
       snapshot[fromIdx].length > 0 &&
       snapshot[fromIdx][snapshot[fromIdx].length - 1] === sourceColor &&
@@ -147,7 +147,9 @@ export default function App() {
     const sRect = sourceRef.getBoundingClientRect();
     const tRect = targetRef.getBoundingClientRect();
 
-    // ── ボトルの口を近づける調整（0.6 → 0.35、0.55 → 0.42） ──
+    // ── ボトル口位置調整 ──────────────────────────────────────────
+    // xOffset: ソースが目標中心に寄るほど値を下げる（0.35 = 適度な近接感）
+    // distanceY: ソースが目標の口の上に来るよう高さを調整（0.42）
     const xOffset = toIdx > fromIdx ? -bWidth * 0.35 : bWidth * 0.35;
     const distanceX = tRect.left - sRect.left + xOffset;
     const distanceY = tRect.top - sRect.top - bHeight * 0.42;
@@ -190,14 +192,12 @@ export default function App() {
         if (!IS_STAGE5(lvl)) setUndoStack([bottlesAtStart]);
         setBottles(finalBottles);
 
-        // ── ② ?開示: ボトルが戻った瞬間に更新（onCompleteで一括） ──
+        // ── ?開示: ボトルが元の位置に戻った瞬間（onComplete）で一括更新 ──
         setRevealedMask(prev => {
           const next = prev.map(m => [...m]);
-          // fromIdx: 注いでいる途中に露出したセルを開示（ボトル戻り後）
           for (let j = Math.max(0, newFromLength - 1); j <= oldFromLength - 2; j++) {
             if (next[fromIdx]) next[fromIdx][j] = true;
           }
-          // toIdx: 注がれたセルを開示
           for (let j = oldToLength; j < newToLength && j < cap; j++) {
             if (next[toIdx]) next[toIdx][j] = true;
           }
@@ -219,14 +219,12 @@ export default function App() {
       timeline.to({}, {
         duration: 0.08,
         onStart: () => {
-          // ── フラッシュ防止: toIdxの覆われるセルと注がれるセルをtrue ──
+          // フラッシュ防止: toIdx の被覆セルと注がれるセルを開示
           // fromIdx は onComplete まで更新しない（?遅延開示のため）
           setRevealedMask(prev => {
             const next = prev.map(m => [...m]);
-            // toIdxの現在トップ（これから覆われる）を開示
             const toTopBefore = oldToLength + ii - 1;
             if (toTopBefore >= 0 && next[toIdx]) next[toIdx][toTopBefore] = true;
-            // 今注がれるアイテム（実際の色、?ではない）を開示
             const newTopInTo = oldToLength + ii;
             if (next[toIdx] && newTopInTo < cap) next[toIdx][newTopInTo] = true;
             return next;
