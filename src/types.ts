@@ -60,82 +60,83 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 2: 4色・？3〜4個・空き1・全満タン ━━━━━━━━━━━━━━━━━━
+  // ━━ Stage 2: 4色・？あり・空き1・全満タン ━━━━━━━━━━━━━━━━━━━━
+  // ルール: トップは常に実際の色（?はトップに存在しない）
   [
     {
       stage: 2, pattern: 1, capacity: 4,
       bottles: [
-        { stack: ['R','?','G','Y'], actual: ['R','B','G','Y'] },
-        { stack: ['Y','?','R','B'], actual: ['Y','G','R','B'] },
-        { stack: ['B','?','?','R'], actual: ['B','Y','G','R'] },
-        { stack: ['G','Y','B','?'], actual: ['G','Y','B','R'] },
+        { stack: ['R','?','G','B'], actual: ['R','Y','G','B'] },
+        { stack: ['G','?','B','R'], actual: ['G','Y','B','R'] },
+        { stack: ['B','?','R','G'], actual: ['B','Y','R','G'] },
+        { stack: ['Y','?','R','G'], actual: ['Y','B','R','G'] },
         { empty: true },
       ],
       colors: ['R','G','B','Y'],
     },
     {
       stage: 2, pattern: 2, capacity: 4,
+      // ※修正: btl3のトップ ? → R（実際の色）
       bottles: [
-        { stack: ['?','R','G','B'], actual: ['Y','R','G','B'] },
-        { stack: ['R','?','Y','G'], actual: ['R','B','Y','G'] },
-        { stack: ['B','Y','?','R'], actual: ['B','Y','G','R'] },
-        { stack: ['G','B','R','Y'] },
+        { stack: ['R','?','G','B'], actual: ['R','Y','G','B'] },
+        { stack: ['G','R','?','Y'], actual: ['G','R','B','Y'] },
+        { stack: ['B','?','R','G'], actual: ['B','Y','R','G'] },
+        { stack: ['Y','B','G','R'], actual: ['Y','B','G','R'] },
         { empty: true },
       ],
       colors: ['R','G','B','Y'],
     },
     {
       stage: 2, pattern: 3, capacity: 4,
+      // ※修正: btl3のトップ ? → G（実際の色）
       bottles: [
-        { stack: ['R','R','?','B'], actual: ['R','R','Y','B'] },
-        { stack: ['?','G','G','Y'], actual: ['R','G','G','Y'] },
-        { stack: ['B','B','?','?'], actual: ['B','B','G','Y'] },
-        { stack: ['Y','?','R','G'], actual: ['Y','B','R','G'] },
+        { stack: ['R','G','?','B'], actual: ['R','G','Y','B'] },
+        { stack: ['G','B','?','R'], actual: ['G','B','Y','R'] },
+        { stack: ['B','?','R','Y'], actual: ['B','G','R','Y'] },
+        { stack: ['Y','R','B','G'], actual: ['Y','R','B','G'] },
         { empty: true },
       ],
       colors: ['R','G','B','Y'],
     },
   ],
 
-  // ━━ Stage 3: 5色・？5〜8個・空き0・部分満タンあり ━━━━━━━━━━━━
-  // クリア条件: 全非空ボトルが単色（満タン不要）
+  // ━━ Stage 3: 5色・空きなし（初期）・全色4個・合計20個 ━━━━━━━━━
+  // ルール: トップは常に実際の色（?はトップに存在しない）
+  // クリア条件: 5本が満タン単色（1本が自然に空になる）
   [
     {
       stage: 3, pattern: 1, capacity: 4,
-      // btl4(3items), btl5(3items) が部分満タン
       bottles: [
-        { stack: ['?','R','?','P'], actual: ['G','R','B','P'] },
-        { stack: ['?','?','G','Y'], actual: ['P','R','G','Y'] },
-        { stack: ['R','B','Y','?'], actual: ['R','B','Y','G'] },
-        { stack: ['B','P','?','R'], actual: ['B','P','Y','R'] },
-        { stack: ['Y','G','P'],     actual: ['Y','G','P'] },
-        { stack: ['?','Y','?'],     actual: ['P','Y','G'] },
+        { stack: ['R','?','G','G'], actual: ['R','R','G','G'] },
+        { stack: ['G','?','B','B'], actual: ['G','G','B','B'] },
+        { stack: ['B','?','Y'],     actual: ['B','B','Y'] },
+        { stack: ['Y','?','Y','P'], actual: ['Y','Y','Y','P'] },
+        { stack: ['P','?','P'],     actual: ['P','P','P'] },
+        { stack: ['R','R'] },
       ],
       colors: ['R','G','B','Y','P'],
     },
     {
       stage: 3, pattern: 2, capacity: 4,
-      // btl2(3items), btl3(3items), btl4(3items) が部分満タン
       bottles: [
-        { stack: ['?','?','?','R'], actual: ['G','B','P','R'] },
-        { stack: ['?','?','?','G'], actual: ['Y','P','R','G'] },
-        { stack: ['?','?','B'],     actual: ['P','Y','B'] },
-        { stack: ['R','G','B'],     actual: ['R','G','B'] },
-        { stack: ['Y','P','R'],     actual: ['Y','P','R'] },
-        { stack: ['P','B','Y','?'], actual: ['P','B','Y','R'] },
+        { stack: ['R','?','?','G'], actual: ['R','G','G','G'] },
+        { stack: ['G','B'] },
+        { stack: ['?','B','B','Y'], actual: ['B','B','B','Y'] },
+        { stack: ['?','Y','Y','P'], actual: ['Y','Y','Y','P'] },
+        { stack: ['?','?','P'],     actual: ['P','P','P'] },
+        { stack: ['?','?','R'],     actual: ['R','R','R'] },
       ],
       colors: ['R','G','B','Y','P'],
     },
     {
       stage: 3, pattern: 3, capacity: 4,
-      // btl3(3items), btl4(3items), btl5(3items) が部分満タン
       bottles: [
-        { stack: ['?','R','R','G'], actual: ['P','R','R','G'] },
-        { stack: ['?','G','?','B'], actual: ['Y','G','R','B'] },
-        { stack: ['B','B','Y','?'], actual: ['B','B','Y','P'] },
-        { stack: ['Y','Y','P'],     actual: ['Y','Y','P'] },
-        { stack: ['P','P','?'],     actual: ['P','P','G'] },
-        { stack: ['R','G','B'],     actual: ['R','G','B'] },
+        { stack: ['?','R','B'],     actual: ['R','R','B'] },
+        { stack: ['G','G','?','Y'], actual: ['G','G','G','Y'] },
+        { stack: ['B','B','?','G'], actual: ['B','B','B','G'] },
+        { stack: ['Y','Y','?','P'], actual: ['Y','Y','Y','P'] },
+        { stack: ['P','?','P'],     actual: ['P','P','P'] },
+        { stack: ['?','R'],         actual: ['R','R'] },
       ],
       colors: ['R','G','B','Y','P'],
     },
@@ -249,7 +250,6 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
   ],
 ];
 
-// ── パターン → ゲーム状態変換 ────────────────────────────────────
 export function parsePattern(pattern: LevelPattern): {
   bottles: ColorId[][];
   revealedMask: boolean[][];
