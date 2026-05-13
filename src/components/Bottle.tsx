@@ -11,12 +11,13 @@ interface BottleProps {
   height?: number;
   capacity?: number;
   revealedMask?: boolean[];
+  isAnimating?: boolean; // アニメーション中フラグ（?の遅延開示に使用）
   onClick: () => void;
 }
 
 const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
   colors, isSelected, tilt, width = 64, height = 240,
-  capacity = 4, revealedMask, onClick,
+  capacity = 4, revealedMask, isAnimating = false, onClick,
 }, ref) => {
   const innerRef = useRef<HTMLDivElement>(null);
 
@@ -44,8 +45,6 @@ const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
       onClick={onClick}
     >
       <div ref={innerRef} className="w-full h-full relative">
-
-        {/* ガラス本体 */}
         <div
           className="absolute inset-x-0 bottom-0 top-0 rounded-b-full rounded-t-lg overflow-hidden z-20 pointer-events-none"
           style={{
@@ -57,12 +56,16 @@ const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
         >
           <div className="absolute left-2 top-4 bottom-4 w-1 bg-white/30 rounded-full z-30" />
 
-          {/* 液体スタック */}
           <div className="absolute inset-x-0 bottom-0 top-4 flex flex-col-reverse z-10">
             {colors.map((colorId, index) => {
               const isTop = index === colors.length - 1;
-              // ── 新ルール: トップセルは常に実際の色を表示、それ以外はマスクで判定 ──
-              const isHidden = !isTop && !(revealedMask?.[index] ?? true);
+
+              // ── ?開示タイミング制御 ────────────────────────────────
+              // 通常時: トップは常に表示（render rule）
+              // アニメーション中: マスクに従う（ボトルが戻るまで?を維持）
+              const isHidden = isAnimating
+                ? !(revealedMask?.[index] ?? true)
+                : (!isTop && !(revealedMask?.[index] ?? true));
 
               return (
                 <div
@@ -93,7 +96,6 @@ const Bottle = forwardRef<HTMLDivElement, BottleProps>(({
           </div>
         </div>
 
-        {/* 瓶の口 */}
         <div
           className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full z-30 pointer-events-none"
           style={{

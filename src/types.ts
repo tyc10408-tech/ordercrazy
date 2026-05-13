@@ -60,8 +60,7 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 2: 4色・？あり・空き1・全満タン ━━━━━━━━━━━━━━━━━━━━
-  // ルール: トップは常に実際の色（?はトップに存在しない）
+  // ━━ Stage 2: 4色・？あり・空き2（6本） ━━━━━━━━━━━━━━━━━━━━━━━
   [
     {
       stage: 2, pattern: 1, capacity: 4,
@@ -71,38 +70,37 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
         { stack: ['B','?','R','G'], actual: ['B','Y','R','G'] },
         { stack: ['Y','?','R','G'], actual: ['Y','B','R','G'] },
         { empty: true },
+        { empty: true },
       ],
       colors: ['R','G','B','Y'],
     },
     {
       stage: 2, pattern: 2, capacity: 4,
-      // ※修正: btl3のトップ ? → R（実際の色）
       bottles: [
         { stack: ['R','?','G','B'], actual: ['R','Y','G','B'] },
         { stack: ['G','R','?','Y'], actual: ['G','R','B','Y'] },
         { stack: ['B','?','R','G'], actual: ['B','Y','R','G'] },
-        { stack: ['Y','B','G','R'], actual: ['Y','B','G','R'] },
+        { stack: ['Y','B','G','R'] },
+        { empty: true },
         { empty: true },
       ],
       colors: ['R','G','B','Y'],
     },
     {
       stage: 2, pattern: 3, capacity: 4,
-      // ※修正: btl3のトップ ? → G（実際の色）
       bottles: [
         { stack: ['R','G','?','B'], actual: ['R','G','Y','B'] },
         { stack: ['G','B','?','R'], actual: ['G','B','Y','R'] },
         { stack: ['B','?','R','Y'], actual: ['B','G','R','Y'] },
-        { stack: ['Y','R','B','G'], actual: ['Y','R','B','G'] },
+        { stack: ['Y','R','B','G'] },
+        { empty: true },
         { empty: true },
       ],
       colors: ['R','G','B','Y'],
     },
   ],
 
-  // ━━ Stage 3: 5色・空きなし（初期）・全色4個・合計20個 ━━━━━━━━━
-  // ルール: トップは常に実際の色（?はトップに存在しない）
-  // クリア条件: 5本が満タン単色（1本が自然に空になる）
+  // ━━ Stage 3: 5色・空きなし（初期）・合計20個 ━━━━━━━━━━━━━━━━━━
   [
     {
       stage: 3, pattern: 1, capacity: 4,
@@ -188,7 +186,7 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 5: 6色・各色8個・空き1+最大3追加・特別ギミック ━━━━━━
+  // ━━ Stage 5: 6色・各色8個・空き1+最大3追加 ━━━━━━━━━━━━━━━━━━━━
   [
     {
       stage: 5, pattern: 1, capacity: 4,
