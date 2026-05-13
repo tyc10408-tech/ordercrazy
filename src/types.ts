@@ -26,7 +26,7 @@ export interface LevelPattern {
 
 export const STAGE_PATTERNS: LevelPattern[][] = [
 
-  // ━━ Stage 1: 3色・空き1・全満タン・ギミックなし ━━━━━━━━━━━━━━━
+  // ━━ Stage 1: 3色・空き1・全満タン ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   [
     {
       stage: 1, pattern: 1, capacity: 4,
@@ -89,7 +89,7 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
       bottles: [
         { stack: ['R','R','?','B'], actual: ['R','R','Y','B'] },
         { stack: ['?','G','G','Y'], actual: ['R','G','G','Y'] },
-        { stack: ['B','B','?','?'], actual: ['B','B','R','Y'] },
+        { stack: ['B','B','?','?'], actual: ['B','B','G','Y'] },
         { stack: ['Y','?','R','G'], actual: ['Y','B','R','G'] },
         { empty: true },
       ],
@@ -97,41 +97,45 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
   ],
 
-  // ━━ Stage 3: 5色・？5〜8個・空き0・一部満タンでない ━━━━━━━━━━━
+  // ━━ Stage 3: 5色・？5〜8個・空き0・部分満タンあり ━━━━━━━━━━━━
+  // クリア条件: 全非空ボトルが単色（満タン不要）
   [
     {
       stage: 3, pattern: 1, capacity: 4,
+      // btl4(3items), btl5(3items) が部分満タン
       bottles: [
         { stack: ['?','R','?','P'], actual: ['G','R','B','P'] },
         { stack: ['?','?','G','Y'], actual: ['P','R','G','Y'] },
         { stack: ['R','B','Y','?'], actual: ['R','B','Y','G'] },
         { stack: ['B','P','?','R'], actual: ['B','P','Y','R'] },
-        { stack: ['Y','G','P','B'] },
-        { stack: ['?','Y','?','?'], actual: ['P','Y','G','B'] },
+        { stack: ['Y','G','P'],     actual: ['Y','G','P'] },
+        { stack: ['?','Y','?'],     actual: ['P','Y','G'] },
       ],
       colors: ['R','G','B','Y','P'],
     },
     {
       stage: 3, pattern: 2, capacity: 4,
+      // btl2(3items), btl3(3items), btl4(3items) が部分満タン
       bottles: [
         { stack: ['?','?','?','R'], actual: ['G','B','P','R'] },
         { stack: ['?','?','?','G'], actual: ['Y','P','R','G'] },
-        { stack: ['?','?','?','B'], actual: ['P','Y','G','B'] },
-        { stack: ['R','G','B','Y'] },
-        { stack: ['Y','P','R','?'], actual: ['Y','P','R','G'] },
+        { stack: ['?','?','B'],     actual: ['P','Y','B'] },
+        { stack: ['R','G','B'],     actual: ['R','G','B'] },
+        { stack: ['Y','P','R'],     actual: ['Y','P','R'] },
         { stack: ['P','B','Y','?'], actual: ['P','B','Y','R'] },
       ],
       colors: ['R','G','B','Y','P'],
     },
     {
       stage: 3, pattern: 3, capacity: 4,
+      // btl3(3items), btl4(3items), btl5(3items) が部分満タン
       bottles: [
         { stack: ['?','R','R','G'], actual: ['P','R','R','G'] },
         { stack: ['?','G','?','B'], actual: ['Y','G','R','B'] },
         { stack: ['B','B','Y','?'], actual: ['B','B','Y','P'] },
-        { stack: ['Y','Y','P','R'] },
-        { stack: ['P','P','?','?'], actual: ['P','P','G','B'] },
-        { stack: ['R','G','B','Y'] },
+        { stack: ['Y','Y','P'],     actual: ['Y','Y','P'] },
+        { stack: ['P','P','?'],     actual: ['P','P','G'] },
+        { stack: ['R','G','B'],     actual: ['R','G','B'] },
       ],
       colors: ['R','G','B','Y','P'],
     },
@@ -155,7 +159,6 @@ export const STAGE_PATTERNS: LevelPattern[][] = [
     },
     {
       stage: 4, pattern: 2, capacity: 4,
-      // ※修正済み: 各色4個均等（隠し18個）
       bottles: [
         { stack: ['R','?','?','?'], actual: ['R','G','B','Y'] },
         { stack: ['P','?','?','?'], actual: ['P','C','R','G'] },
@@ -273,7 +276,5 @@ export function parsePattern(pattern: LevelPattern): {
   return { bottles, revealedMask, capacity };
 }
 
-// Stage5 オーダー順序
 export const STAGE5_ORDER: ColorId[] = ['R', 'G', 'B', 'Y', 'P', 'C'];
-
 export const LEVELS_CONFIG = STAGE_PATTERNS.map((_, i) => ({ stageNumber: i + 1 }));
