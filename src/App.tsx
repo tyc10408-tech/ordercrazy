@@ -8,6 +8,10 @@ import { RefreshCcw, Undo2, ChevronRight, Trophy, PackageCheck, Info } from 'luc
 
 const IS_STAGE5 = (idx: number) => idx === 4;
 
+// localStorage ヘルパー
+const lsGet = (key: string) => { try { return localStorage.getItem(key) === '1'; } catch { return false; } };
+const lsSet = (key: string) => { try { localStorage.setItem(key, '1'); } catch {} };
+
 export default function App() {
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [bottles, setBottles] = useState<ColorId[][]>([]);
@@ -20,27 +24,40 @@ export default function App() {
   const [revealedMask, setRevealedMask] = useState<boolean[][]>([]);
   const [capacity, setCapacity] = useState(4);
 
-  // ── Stage5 専用ステート ──
+  // Stage5 専用
   const [currentOrderIndex, setCurrentOrderIndex] = useState(0);
   const [extraEmpty, setExtraEmpty] = useState(0);
   const [showOrderComplete, setShowOrderComplete] = useState(false);
   const [orderCompleteColor, setOrderCompleteColor] = useState<ColorId | null>(null);
   const [showStage5Warning, setShowStage5Warning] = useState(false);
 
-  // ── チュートリアル1回のみ ──
-  const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
-  const [hasSeenStage5Warning, setHasSeenStage5Warning] = useState(false);
+  // ── ① ポップアップ1回のみ: localStorageで管理（リロード後も既読を記憶）──
+  const [hasSeenTutorial, setHasSeenTutorial] = useState(() => lsGet('oc_tutorial'));
+  const [hasSeenStage5Warning, setHasSeenStage5Warning] = useState(() => lsGet('oc_s5warn'));
+
+  const closeTutorial = () => {
+    setShowTutorial(false);
+    setHasSeenTutorial(true);
+    lsSet('oc_tutorial');
+  };
+  const closeStage5Warning = () => {
+    setShowStage5Warning(false);
+    setHasSeenStage5Warning(true);
+    lsSet('oc_s5warn');
+  };
 
   // stale closure 対策 refs
   const currentOrderIndexRef = useRef(0);
   const extraEmptyRef = useRef(0);
   const capacityRef = useRef(4);
   const currentLevelIndexRef = useRef(0);
+  const revealedMaskRef = useRef<boolean[][]>([]);
 
   useEffect(() => { currentOrderIndexRef.current = currentOrderIndex; }, [currentOrderIndex]);
   useEffect(() => { extraEmptyRef.current = extraEmpty; }, [extraEmpty]);
   useEffect(() => { capacityRef.current = capacity; }, [capacity]);
   useEffect(() => { currentLevelIndexRef.current = currentLevelIndex; }, [currentLevelIndex]);
+  useEffect(() => { revealedMaskRef.current = revealedMask; }, [revealedMask]);
 
   // ── レベル初期化 ──
   const initLevel = useCallback((index: number) => {
@@ -52,6 +69,7 @@ export default function App() {
 
     setBottles(b);
     setRevealedMask(m);
+    revealedMaskRef.current = m;
     setCapacity(cap);
     setSelectedIdx(null);
     setUndoStack([]);
@@ -79,18 +97,26 @@ export default function App() {
     initLevel(currentLevelIndex);
   }, [currentLevelIndex, initLevel]);
 
-  // ── 勝利判定: 全ステージ共通「満タン+単色」 ──────────────────────
-  // Stage3も同様（合計20個なので5本満タン+1本空がクリア状態）
+  // ── ③ 勝利判定: 全ステージ「満タン+単色+全?解除済み」──────────────
   useEffect(() => {
     if (bottles.length === 0 || isAnimating) return;
     const nonEmpty = bottles.filter(b => b.length > 0);
     if (nonEmpty.length === 0) return;
     const cap = capacityRef.current;
-    const allDone = nonEmpty.every(b => b.length === cap && b.every(c => c === b[0]));
-    if (allDone) setIsWon(true);
-  }, [bottles, isAnimating]);
 
-  // ── ボトルクリック（タップでは?を開示しない） ──
+    // 全非空ボトルが満タン+単色
+    const allFullSorted = nonEmpty.every(b => b.length === cap && b.every(c => c === b[0]));
+    if (!allFullSorted) return;
+
+    // 全ての?が開示済み（隠しセルが残っていない）
+    const allRevealed = bottles.every((bottle, i) =>
+      bottle.every((_, j) => revealedMask[i]?.[j] !== false)
+    );
+
+    if (allRevealed) setIsWon(true);
+  }, [bottles, isAnimating, revealedMask]);
+
+  // ── ボトルクリック ──
   const handleBottleClick = async (idx: number) => {
     if (isWon || isAnimating || showTutorial || showStageSelect || showStage5Warning) return;
 
@@ -131,12 +157,17 @@ export default function App() {
     const sourceColor = bottles[fromIdx][bottles[fromIdx].length - 1];
     let unitsToMove = 0;
     const snapshot = bottles.map(b => [...b]);
+    const mask = revealedMaskRef.current;
 
+    // ── ② 隠しセルで中断: 同じ色でも?のセルは別の手で注ぐ ──────────
     while (
       snapshot[fromIdx].length > 0 &&
       snapshot[fromIdx][snapshot[fromIdx].length - 1] === sourceColor &&
       snapshot[toIdx].length + unitsToMove < cap
     ) {
+      const currentTopIdx = snapshot[fromIdx].length - 1;
+      // 2個目以降: 隠しセルならbreak（トップは常に表示済みなので最初は必ず通る）
+      if (unitsToMove > 0 && !mask[fromIdx]?.[currentTopIdx]) break;
       unitsToMove++;
       snapshot[fromIdx].pop();
     }
@@ -226,7 +257,6 @@ export default function App() {
       timeline.to({}, {
         duration: 0.08,
         onStart: () => {
-          // revealedMask と bottles を同時更新（?フラッシュ防止）
           setRevealedMask(prev => {
             const next = prev.map(m => [...m]);
             const toTopBefore = oldToLength + ii - 1;
@@ -293,7 +323,6 @@ export default function App() {
         backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* Infoボタン */}
       <button
         onClick={handleInfoClick}
         className="fixed top-4 right-4 z-[90] bg-white/90 rounded-full w-10 h-10 flex items-center justify-center shadow-lg border-2 border-emerald-300 hover:scale-110 transition-transform active:scale-95"
@@ -301,7 +330,6 @@ export default function App() {
         <Info className="w-5 h-5 text-emerald-600" />
       </button>
 
-      {/* ヘッダー */}
       <header className="relative pt-10 pb-2 w-full flex flex-col items-center gap-3 z-30">
         <h1 className="text-3xl md:text-5xl font-black text-emerald-900 tracking-tight drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]">
           Order Crazy's copy
@@ -332,7 +360,6 @@ export default function App() {
         )}
       </header>
 
-      {/* ゲームボード */}
       <main className="flex-grow w-full pb-[120px] pt-6 flex items-center justify-center overflow-x-auto">
         <div className="flex flex-row flex-nowrap justify-center items-end gap-1 md:gap-4 px-4 min-w-max mx-auto">
           {bottles.map((bottleColors, i) => (
@@ -352,7 +379,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* フッター */}
       <footer className="fixed bottom-10 w-full flex justify-center gap-6 z-40">
         <button
           onClick={() => initLevel(currentLevelIndex)}
@@ -374,7 +400,6 @@ export default function App() {
         )}
       </footer>
 
-      {/* Stage5: オーダー達成ポップアップ */}
       <AnimatePresence>
         {showOrderComplete && orderCompleteColor && (
           <motion.div
@@ -393,7 +418,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Stage5: 警告モーダル */}
       <AnimatePresence>
         {showStage5Warning && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -416,10 +440,8 @@ export default function App() {
                   <span>オーダーを無視してもクリアは可能です</span>
                 </li>
               </ul>
-              <button
-                onClick={() => { setShowStage5Warning(false); setHasSeenStage5Warning(true); }}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-12 py-4 rounded-full font-black text-xl shadow-lg transition-all active:translate-y-1 w-full"
-              >
+              <button onClick={closeStage5Warning}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-12 py-4 rounded-full font-black text-xl shadow-lg transition-all active:translate-y-1 w-full">
                 了解！開始する
               </button>
             </motion.div>
@@ -427,7 +449,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ステージ選択モーダル */}
       <AnimatePresence>
         {showStageSelect && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -454,7 +475,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* チュートリアル */}
       <AnimatePresence>
         {showTutorial && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -469,10 +489,8 @@ export default function App() {
                   <span className="text-gray-500 text-sm mt-2 block">「？」は上の液体が別のボトルへ<br />移動した瞬間に色が分かるよ</span>
                 </p>
               </div>
-              <button
-                onClick={() => { setShowTutorial(false); setHasSeenTutorial(true); }}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-12 py-4 rounded-full font-black text-xl shadow-lg transition-all active:translate-y-1"
-              >
+              <button onClick={closeTutorial}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-12 py-4 rounded-full font-black text-xl shadow-lg transition-all active:translate-y-1">
                 了解！
               </button>
             </motion.div>
@@ -480,7 +498,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* クリアモーダル */}
       <AnimatePresence>
         {isWon && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
